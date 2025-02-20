@@ -45,7 +45,7 @@ const mongoOptions = {
 };
 
 // MongoDB Connection URI
-const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://mk8701952:tgw2Vs0ZmVyvrugr@cluster0.j318p.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+const mongoURI = process.env.MONGODB_URI 
 
 // Function to start server
 const startServer = (port) => {
@@ -71,7 +71,7 @@ mongoose
     console.log('Connected to MongoDB');
     
     // Try to start server with initial port
-    const initialPort = parseInt(process.env.PORT) || 5000;
+    const initialPort = parseInt(process.env.PORT);
     const server = await startServer(initialPort);
     const actualPort = server.address().port;
     

@@ -1,123 +1,63 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
-const userSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, 'Please enter your name'],
-    maxLength: [50, 'Name cannot exceed 50 characters']
-  },
-  email: {
-    type: String,
-    required: [true, 'Please enter your email'],
-    unique: true,
-    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
-  },
-  password: {
-    type: String,
-    required: [true, 'Please enter your password'],
-    minlength: [6, 'Password must be at least 6 characters'],
-    select: false
-  },
-  phone: {
-    type: String,
-    required: [true, 'Please enter your phone number']
-  },
-  role: {
-    type: String,
-    enum: ['user', 'seller', 'admin'],
-    default: 'user'
-  },
-  addresses: [
-    {
-      street: {
-        type: String,
-        required: true
-      },
-      city: {
-        type: String,
-        required: true
-      },
-      state: {
-        type: String,
-        required: true
-      },
-      pincode: {
-        type: String,
-        required: true
-      }
-    }
-  ],
-  // Seller specific fields
-  businessName: {
-    type: String,
-    required: function() {
-      return this.role === 'seller';
-    }
-  },
-  gstNumber: {
-    type: String,
-    required: function() {
-      return this.role === 'seller';
-    },
-    validate: {
-      validator: function(v) {
-        // GST number format validation
-        return /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(v);
-      },
-      message: props => `${props.value} is not a valid GST number!`
-    }
-  },
-  businessAddress: {
-    type: String,
-    required: function() {
-      return this.role === 'seller';
-    }
-  },
-  businessPhone: {
-    type: String,
-    required: function() {
-      return this.role === 'seller';
-    }
-  },
-  isVerified: {
-    type: Boolean,
-    default: false
-  },
-  verificationToken: String,
-  verificationTokenExpiry: Date,
-  resetPasswordToken: String,
-  resetPasswordExpiry: Date,
-  otp: {
-    code: {
+const UserSchema = new mongoose.Schema(
+  {
+    name: {
       type: String,
-      select: false
+      required: [true, "Name is required"],
+      trim: true,
     },
-    expiresAt: {
-      type: Date,
-      select: false
-    }
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      unique: true,
+      lowercase: true,
+    },
+    phone: {
+      type: String,
+      required: [true, "Phone number is required"],
+      unique: true,
+    },
+    password: {
+      type: String,
+      required: [true, "Password is required"],
+      minlength: [6, "Password must be at least 6 characters long"],
+    },
+    role: {
+      type: String,
+      enum: ["user", "seller", "admin"],
+      default: "user",
+    },
+    address: {
+      street: { type: String, default: "" },
+      city: { type: String, default: "" },
+      state: { type: String, default: "" },
+      zip: { type: String, default: "" },
+      country: { type: String, default: "India" },
+    },
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-}, {
-  timestamps: true
+  { timestamps: true }
+);
+
+// **Hash Password Before Saving**
+UserSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  this.password = await bcrypt.hash(this.password, 10);
+  next();
 });
 
-// Encrypt password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
-    next();
-  }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-});
-
-// Compare password
-userSchema.methods.comparePassword = async function(enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+// **Generate JWT Token**
+UserSchema.methods.generateAuthToken = function () {
+  return jwt.sign({ id: this._id, role: this.role }, process.env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
 };
 
-module.exports = mongoose.model('User', userSchema);
+// **Compare Passwords**
+UserSchema.methods.comparePassword = async function (password) {
+  return await bcrypt.compare(password, this.password);
+};
+
+const User = mongoose.model("User", UserSchema);
